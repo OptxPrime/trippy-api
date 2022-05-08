@@ -36,6 +36,7 @@ class SoloTrip(models.Model):
     date = models.DateTimeField('trip date')
     # transport = models.CharField(choices=TransportType.choices, default=TransportType.PLANE)
     max_price = models.PositiveIntegerField()
+    accepted = models.BooleanField(default=False)
 
 
 class GroupTour(models.Model):
