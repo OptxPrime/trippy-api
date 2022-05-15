@@ -14,6 +14,7 @@ from pathlib import Path
 import environ
 
 # Initialise environment variables
+# https://alicecampkin.medium.com/how-to-set-up-environment-variables-in-django-f3c4db78c55f
 env = environ.Env()
 environ.Env.read_env()
 
@@ -132,3 +133,10 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Email config
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
