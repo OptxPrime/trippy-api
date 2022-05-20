@@ -1,3 +1,4 @@
+import jsonpickle
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
@@ -115,7 +116,6 @@ def reset_password(request):
     else:
         new_password = generate_random_password()
         agency.password = new_password
-        print(agency.establishment_date)
         agency.save()
         try:
             send_mail(
@@ -123,10 +123,65 @@ def reset_password(request):
                 f'Your new password is ${new_password}.',
                 'dzalewebshop@gmail.com',
                 ['dzakatarik@gmail.com'],
-                # [f'${agency.email}'],
                 fail_silently=False,
             )
         except:
             return HttpResponse('Mail not sent (internal error)', status=500)
         else:
             return HttpResponse('OK', status=200)
+
+
+@api_view(['GET'])
+def get_user_by_token(request):
+    token = json.loads(request.headers['Authorization'].split(' ')[1])
+    user_type = token.split('#')[0]
+    user_id = token.split('#')[1]
+
+    if user_type == 'agency':
+        try:
+            agency = get_object_or_404(Agency, pk=user_id)
+        except (KeyError, Agency.DoesNotExist):
+            return HttpResponse('Unauthorized', status=401)
+        else:
+            return JsonResponse(agency.to_json(), safe=False)
+    else:
+        try:
+            traveler = get_object_or_404(Traveler, pk=user_id)
+        except (KeyError, Traveler.DoesNotExist):
+            return HttpResponse('Unauthorized', status=401)
+        else:
+            return JsonResponse(traveler.to_json(), safe=False)
+
+@api_view(['POST'])
+def update_profile(request):
+    token = json.loads(request.headers['Authorization'].split(' ')[1])
+    user_type = token.split('#')[0]
+    user_id = token.split('#')[1]
+
+    updated_info = request.data
+
+    if user_type == 'agency':
+        js_date = updated_info['establishment_date']
+        updated_info['establishment_date'] = datetime.strptime(js_date, '%Y-%m-%d')
+        try:
+            agency = get_object_or_404(Agency, pk=user_id)
+        except (KeyError, Agency.DoesNotExist):
+            return HttpResponse('Unauthorized', status=404)
+        else:
+            agency.name = updated_info['name']
+            agency.agency_id = updated_info['agency_id']
+            agency.password = updated_info['password']
+            agency.establishment_date = updated_info['establishment_date']
+            agency.save()
+            return HttpResponse('Ok', status=200)
+    else:
+        try:
+            traveler = get_object_or_404(Traveler, pk=user_id)
+        except (KeyError, Traveler.DoesNotExist):
+            return HttpResponse('Unauthorized', status=404)
+        else:
+            traveler.first_name = updated_info['first_name']
+            traveler.last_name = updated_info['last_name']
+            traveler.password = updated_info['password']
+            traveler.save()
+            return HttpResponse('Ok', status=200)

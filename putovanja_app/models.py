@@ -1,3 +1,5 @@
+import jsonpickle
+import copy
 from django.db import models
 
 
@@ -8,6 +10,11 @@ class Traveler(models.Model):
     email = models.CharField(max_length=64)
     password = models.CharField(max_length=512)
 
+    # https://stackoverflow.com/questions/18246024/easy-way-to-exclude-django-state-attribute-from-jsonpickle-encode
+    def to_json(self):
+        clone = copy.deepcopy(self)
+        return jsonpickle.encode(clone, unpicklable=False, indent=4)
+
 
 class Agency(models.Model):
     name = models.CharField(max_length=32)
@@ -15,6 +22,10 @@ class Agency(models.Model):
     email = models.CharField(max_length=64)
     password = models.CharField(max_length=512)
     establishment_date = models.DateTimeField('date of establishment')
+
+    def to_json(self):
+        clone = copy.deepcopy(self)
+        return jsonpickle.encode(clone, unpicklable=False, indent=4)
 
 
 # class City(models.Model):

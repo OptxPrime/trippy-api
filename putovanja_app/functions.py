@@ -33,8 +33,9 @@ def check_if_registered_username(username):
         return True
 
 
-## characters to generate password from
+# characters to generate password from
 characters = list(string.ascii_letters + string.digits + "!@#$%^&*()")
+
 
 # function below taken from https://geekflare.com/password-generator-python-code/
 def generate_random_password():
@@ -54,4 +55,6 @@ def generate_random_password():
     # converting the list to string
     # printing the list
     return "".join(password)
+
+
 

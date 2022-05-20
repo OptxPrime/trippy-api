@@ -8,4 +8,6 @@ urlpatterns = [
     path('login/agency', views.login_agency, name='login agency'),
     path('login/traveler', views.login_traveler, name='login traveler'),
     path('reset-password', views.reset_password, name='reset password'),
+    path('get_user', views.get_user_by_token, name='get current user'),
+    path('update-profile', views.update_profile, name='update profile'),
 ]
