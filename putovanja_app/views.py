@@ -8,7 +8,7 @@ from datetime import datetime
 
 from rest_framework.decorators import api_view
 
-from .models import Traveler, Agency
+from .models import Traveler, Agency, SoloTrip, GroupTour
 from .functions import check_if_registered_email, check_if_registered_username, generate_random_password
 
 
@@ -152,6 +152,7 @@ def get_user_by_token(request):
         else:
             return JsonResponse(traveler.to_json(), safe=False)
 
+
 @api_view(['POST'])
 def update_profile(request):
     token = json.loads(request.headers['Authorization'].split(' ')[1])
@@ -178,10 +179,83 @@ def update_profile(request):
         try:
             traveler = get_object_or_404(Traveler, pk=user_id)
         except (KeyError, Traveler.DoesNotExist):
-            return HttpResponse('Unauthorized', status=404)
+            return HttpResponse('Unauthorized', status=401)
         else:
-            traveler.first_name = updated_info['first_name']
-            traveler.last_name = updated_info['last_name']
-            traveler.password = updated_info['password']
-            traveler.save()
             return HttpResponse('Ok', status=200)
+
+
+@api_view(['POST'])
+def add_solo_trip(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = token.split('#')[1]
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type != 'traveler':
+            return HttpResponse("Only travelers can add solo trips!", 401)
+        try:
+            traveler = get_object_or_404(Traveler, pk=user_id)
+        except (KeyError, Traveler.DoesNotExist):
+            return HttpResponse('Unauthorized', status=401)
+        else:
+            dt_obj = datetime.strptime(request.data['datetime'], '%Y-%m-%dT%H:%M')
+            transport = ','.join(request.data['transport'])
+            try:
+                solo_trip = SoloTrip(
+                    title=request.data['title'],
+                    description=request.data['description'],
+                    agency=Agency.objects.get(pk=request.data['agency']),
+                    traveler=Traveler.objects.get(pk=traveler.id),
+                    datetime=dt_obj,
+                    transport=transport,
+                    location_name=request.data['location'],
+                    lat=request.data['lat'],
+                    lng=request.data['lng'],
+                    max_price=request.data['max_price'],
+                )
+                solo_trip.save()
+            except Exception as e:
+                return HttpResponse('%s' % type(e), status=500)
+            else:
+                return HttpResponse('Added solo trip', status=201)
+
+
+@api_view(['POST'])
+def add_group_tour(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = token.split('#')[1]
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type != 'agency':
+            return HttpResponse("Only agencies can add group tours!", 401)
+        try:
+            agency = get_object_or_404(Agency, pk=user_id)
+        except (KeyError, Traveler.DoesNotExist):
+            return HttpResponse('Unauthorized', status=401)
+        else:
+            dt_obj = datetime.strptime(request.data['datetime'], '%Y-%m-%dT%H:%M')
+            transport = ','.join(request.data['transport'])
+            try:
+                group_tour = GroupTour(
+                    title=request.data['title'],
+                    description=request.data['description'],
+                    agency=agency,
+                    datetime=dt_obj,
+                    transport=transport,
+                    location_name=request.data['location'],
+                    lat=request.data['lat'],
+                    lng=request.data['lng'],
+                    min_travelers=request.data['min_travelers'],
+                    max_travelers=request.data['max_travelers'],
+                    picture_url=request.data['picture_url']
+                )
+                group_tour.save()
+            except Exception as e:
+                return HttpResponse('%s' % type(e), status=500)
+            else:
+                return HttpResponse('Added group tour', status=201)

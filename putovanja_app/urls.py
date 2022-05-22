@@ -10,4 +10,6 @@ urlpatterns = [
     path('reset-password', views.reset_password, name='reset password'),
     path('get_user', views.get_user_by_token, name='get current user'),
     path('update-profile', views.update_profile, name='update profile'),
+    path('add-solo-trip', views.add_solo_trip, name='add solo trip'),
+    path('add-group-tour', views.add_group_tour, name='add group tour')
 ]
