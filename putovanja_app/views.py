@@ -1,15 +1,16 @@
-import jsonpickle
+from itertools import chain
+import json
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
+from django.core import serializers
 
-import json
 from datetime import datetime
 
 from rest_framework.decorators import api_view
 
 from .models import Traveler, Agency, SoloTrip, GroupTour
-from .functions import check_if_registered_email, check_if_registered_username, generate_random_password
+from .functions import check_if_registered_email, check_if_registered_username, generate_random_password, get_agency_trips
 
 
 # important: handling data from post requests in django
@@ -259,3 +260,58 @@ def add_group_tour(request):
                 return HttpResponse('%s' % type(e), status=500)
             else:
                 return HttpResponse('Added group tour', status=201)
+
+
+# TO DO: insert is_registered and current_travelers field to all trips because of check in/check out
+@api_view(['GET'])
+def get_future_trips(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = token.split('#')[1]
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type == 'agency':
+            serialized_trips = get_agency_trips(user_id, 'future')
+            return JsonResponse(serialized_trips, safe=False)
+        else:
+            try:
+                traveler = get_object_or_404(Traveler, pk=user_id)
+            except (KeyError, Traveler.DoesNotExist):
+                return HttpResponse('Unauthorized', status=401)
+            else:
+                solo_trips = SoloTrip.objects.filter(traveler=traveler).filter(datetime__gte=datetime.now()).distinct()
+                group_tours = GroupTour.objects.filter(datetime__gte=datetime.now()).distinct()
+                trips = list(chain(solo_trips, group_tours))
+                serialized_trips = serializers.serialize('json', trips)
+
+                return JsonResponse(serialized_trips, safe=False)
+
+
+# TO DO: insert is_registered and current_travelers field to all trips because of check in/check out
+# TO DO: filter group tours of traveler to include only those he attended
+@api_view(['GET'])
+def get_my_trips(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = token.split('#')[1]
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type == 'agency':
+            serialized_trips = get_agency_trips(user_id, 'past')
+            return JsonResponse(serialized_trips, safe=False)
+        else:
+            try:
+                traveler = get_object_or_404(Traveler, pk=user_id)
+            except (KeyError, Traveler.DoesNotExist):
+                return HttpResponse('Unauthorized', status=401)
+            else:
+                solo_trips = SoloTrip.objects.filter(traveler=traveler).filter(datetime__lte=datetime.now()).filter(status='accepted')
+                group_tours = GroupTour.objects.filter(datetime__lte=datetime.now()) # to do: filter by attendance of current traveler
+                trips = list(chain(solo_trips, group_tours))
+                serialized_trips = serializers.serialize('json', trips)
+
+                return JsonResponse(serialized_trips, safe=False)

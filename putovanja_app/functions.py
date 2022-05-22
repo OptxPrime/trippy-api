@@ -1,10 +1,13 @@
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.core import serializers
 
+from datetime import datetime
+from itertools import chain
 import string
 import random
 
-from putovanja_app.models import Traveler, Agency
+from putovanja_app.models import Traveler, Agency, SoloTrip, GroupTour
 
 
 def check_if_registered_email(user_type, email):
@@ -56,5 +59,26 @@ def generate_random_password():
     # printing the list
     return "".join(password)
 
+
+def get_agency_trips(agency_id, when):
+    try:
+        agency = get_object_or_404(Agency, pk=agency_id)
+    except (KeyError, Agency.DoesNotExist):
+        return HttpResponse('Unauthorized', status=401)
+    else:
+        solo_trips = SoloTrip.objects.filter(agency=agency)
+        group_tours = GroupTour.objects.filter(agency=agency)
+        if when == 'past':
+            solo_trips.filter(datetime__lte=datetime.now())
+            group_tours.filter(datetime__lte=datetime.now())
+        elif when == 'future':
+            solo_trips.filter(datetime__gte=datetime.now())
+            group_tours.filter(atetime__gte=datetime.now())
+
+        # https://stackoverflow.com/questions/431628/how-can-i-combine-two-or-more-querysets-in-a-django-view
+        trips = list(chain(solo_trips, group_tours))
+        # https://stackoverflow.com/questions/757022/how-do-you-serialize-a-model-instance-in-django
+        serialized_trips = serializers.serialize('json', trips)
+        return serialized_trips
 
 
