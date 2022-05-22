@@ -11,9 +11,9 @@ class Traveler(models.Model):
     password = models.CharField(max_length=512)
 
     # https://stackoverflow.com/questions/18246024/easy-way-to-exclude-django-state-attribute-from-jsonpickle-encode
-    def to_json(self):
-        clone = copy.deepcopy(self)
-        return jsonpickle.encode(clone, unpicklable=False, indent=4)
+    # def to_json(self):
+    #     clone = copy.deepcopy(self)
+    #     return jsonpickle.encode(clone, unpickable=False, indent=4)
 
 
 class Agency(models.Model):
@@ -23,30 +23,7 @@ class Agency(models.Model):
     password = models.CharField(max_length=512)
     establishment_date = models.DateTimeField('date of establishment')
 
-    def to_json(self):
-        clone = copy.deepcopy(self)
-        return jsonpickle.encode(clone, unpicklable=False, indent=4)
 
-
-# class City(models.Model):
-#     name = models.CharField(max_length=32)
-#     country = models.CharField(max_length=32)
-#     is_capital = models.BooleanField(default=False)
-#
-#
-# class TransportType(models.TextChoices):
-#     PLANE = 'AVION'
-#     SHIP = 'BROD'
-#     BUS = 'AUTOBUS'
-#     VAN = 'KOMBI'
-#
-#
-# class TripStatus(models.TextChoices):
-#     accepted = 'accepted'
-#     rejected = 'rejected'
-#     on_hold = 'on_hold'
-#
-#
 class SoloTrip(models.Model):
     title = models.CharField(max_length=64)
     description = models.CharField(max_length=1024)
@@ -59,10 +36,6 @@ class SoloTrip(models.Model):
     lng = models.DecimalField(decimal_places=7, max_digits=10)
     max_price = models.PositiveIntegerField()
     status = models.CharField(max_length=16, default='in review')
-
-    def to_json(self):
-        clone = copy.deepcopy(self)
-        return jsonpickle.encode(clone, unpicklable=False, indent=4)
 
 
 class GroupTour(models.Model):
@@ -81,3 +54,10 @@ class GroupTour(models.Model):
     def to_json(self):
         clone = copy.deepcopy(self)
         return jsonpickle.encode(clone, unpicklable=False, indent=4)
+
+
+# to do: change class name to be singular for consistency
+class TourRegistrations(models.Model):
+    traveler = models.ForeignKey(Traveler, on_delete=models.CASCADE)
+    tour = models.ForeignKey(GroupTour, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)

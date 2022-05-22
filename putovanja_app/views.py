@@ -10,7 +10,7 @@ from datetime import datetime
 from rest_framework.decorators import api_view
 
 from .models import Traveler, Agency, SoloTrip, GroupTour
-from .functions import check_if_registered_email, check_if_registered_username, generate_random_password, get_agency_trips
+from .functions import check_if_registered_email, check_if_registered_username, generate_random_password, get_agency_trips, get_traveler_registrations
 
 
 # important: handling data from post requests in django
@@ -140,18 +140,18 @@ def get_user_by_token(request):
 
     if user_type == 'agency':
         try:
-            agency = get_object_or_404(Agency, pk=user_id)
+            agency = Agency.objects.filter(pk=user_id).values()
         except (KeyError, Agency.DoesNotExist):
             return HttpResponse('Unauthorized', status=401)
         else:
-            return JsonResponse(agency.to_json(), safe=False)
+            return JsonResponse(list(agency), safe=False)
     else:
         try:
-            traveler = get_object_or_404(Traveler, pk=user_id)
+            traveler = Traveler.objects.filter(pk=user_id).values()
         except (KeyError, Traveler.DoesNotExist):
             return HttpResponse('Unauthorized', status=401)
         else:
-            return JsonResponse(traveler.to_json(), safe=False)
+            return JsonResponse(list(traveler), safe=False)
 
 
 @api_view(['POST'])
@@ -290,7 +290,6 @@ def get_future_trips(request):
 
 
 # TO DO: insert is_registered and current_travelers field to all trips because of check in/check out
-# TO DO: filter group tours of traveler to include only those he attended
 @api_view(['GET'])
 def get_my_trips(request):
     try:
@@ -310,7 +309,10 @@ def get_my_trips(request):
                 return HttpResponse('Unauthorized', status=401)
             else:
                 solo_trips = SoloTrip.objects.filter(traveler=traveler).filter(datetime__lte=datetime.now()).filter(status='accepted')
-                group_tours = GroupTour.objects.filter(datetime__lte=datetime.now()) # to do: filter by attendance of current traveler
+                group_tours = GroupTour.objects.filter(datetime__lte=datetime.now())
+                tour_registrations = get_traveler_registrations(user_id)
+                group_tours = group_tours.filter(pk__in=tour_registrations)  # filter by registration of current traveler
+
                 trips = list(chain(solo_trips, group_tours))
                 serialized_trips = serializers.serialize('json', trips)
 

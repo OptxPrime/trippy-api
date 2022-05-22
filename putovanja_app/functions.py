@@ -7,7 +7,7 @@ from itertools import chain
 import string
 import random
 
-from putovanja_app.models import Traveler, Agency, SoloTrip, GroupTour
+from putovanja_app.models import Traveler, Agency, SoloTrip, GroupTour, TourRegistrations
 
 
 def check_if_registered_email(user_type, email):
@@ -69,11 +69,11 @@ def get_agency_trips(agency_id, when):
         solo_trips = SoloTrip.objects.filter(agency=agency)
         group_tours = GroupTour.objects.filter(agency=agency)
         if when == 'past':
-            solo_trips.filter(datetime__lte=datetime.now())
-            group_tours.filter(datetime__lte=datetime.now())
+            solo_trips = solo_trips.filter(datetime__lte=datetime.now()).filter(status='accepted')
+            group_tours = group_tours.filter(datetime__lte=datetime.now())
         elif when == 'future':
-            solo_trips.filter(datetime__gte=datetime.now())
-            group_tours.filter(atetime__gte=datetime.now())
+            solo_trips = solo_trips.filter(datetime__gte=datetime.now())
+            group_tours = group_tours.filter(datetime__gte=datetime.now())
 
         # https://stackoverflow.com/questions/431628/how-can-i-combine-two-or-more-querysets-in-a-django-view
         trips = list(chain(solo_trips, group_tours))
@@ -82,3 +82,7 @@ def get_agency_trips(agency_id, when):
         return serialized_trips
 
 
+# returns QuerySet containing ids of group tours for which specified traveler registered
+# https://stackoverflow.com/questions/22124549/django-models-get-list-of-id
+def get_traveler_registrations(traveler_id):
+    return TourRegistrations.objects.filter(traveler=traveler_id).values_list('tour_id', flat=True)
