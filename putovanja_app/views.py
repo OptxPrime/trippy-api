@@ -9,9 +9,12 @@ from datetime import datetime
 
 from rest_framework.decorators import api_view
 
-from .models import Traveler, Agency, SoloTrip, GroupTour
-from .functions import check_if_registered_email, check_if_registered_username, generate_random_password, get_agency_trips, get_traveler_registrations
+from .models import Traveler, Agency, SoloTrip, GroupTour, TourRegistrations
+from .functions import check_if_registered_email, check_if_registered_username, \
+    generate_random_password, get_agency_trips, \
+    get_traveler_registrations, get_tour_registrations
 
+from . import functions
 
 # important: handling data from post requests in django
 # https://stackoverflow.com/questions/16213324/django-tastypie-request-post-is-empty
@@ -285,7 +288,6 @@ def get_future_trips(request):
                 group_tours = GroupTour.objects.filter(datetime__gte=datetime.now()).distinct()
                 trips = list(chain(solo_trips, group_tours))
                 serialized_trips = serializers.serialize('json', trips)
-
                 return JsonResponse(serialized_trips, safe=False)
 
 
@@ -310,10 +312,110 @@ def get_my_trips(request):
             else:
                 solo_trips = SoloTrip.objects.filter(traveler=traveler).filter(datetime__lte=datetime.now()).filter(status='accepted')
                 group_tours = GroupTour.objects.filter(datetime__lte=datetime.now())
-                tour_registrations = get_traveler_registrations(user_id)
+                tour_registrations = functions.get_traveler_registrations(user_id)
                 group_tours = group_tours.filter(pk__in=tour_registrations)  # filter by registration of current traveler
 
                 trips = list(chain(solo_trips, group_tours))
                 serialized_trips = serializers.serialize('json', trips)
-
                 return JsonResponse(serialized_trips, safe=False)
+
+
+@api_view(['POST'])
+def change_trip_status(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = int(token.split('#')[1]) # important: convert to int because of comparison
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type == 'traveler': # traveler cannot change any trip status
+            return HttpResponse("Unathorized", status=401)
+        trip_id = request.data['trip_id']
+        status = request.data['status']
+        try:
+            trip = get_object_or_404(SoloTrip, pk=trip_id)
+        except (KeyError, SoloTrip.DoesNotExist):
+            return HttpResponse('Not found', status=404)
+        else:
+            if trip.agency_id != user_id: # agency tries to delete trip of some other agency
+                return HttpResponse("Unathorized", status=401)
+            trip.status = status
+            trip.save()
+            return HttpResponse('OK', status=200)
+
+
+@api_view(['POST'])
+def delete_trip(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = int(token.split('#')[1]) # important: convert to int because of comparison
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        trip_id = request.data['trip_id']
+        trip_type = request.data['trip_type']
+        try:
+            if trip_type == 'solo':
+                trip = get_object_or_404(SoloTrip, pk=trip_id)
+            elif user_type == 'agency': # only agency can delete GroupTour
+                trip = get_object_or_404(GroupTour, pk=trip_id)
+            else: # if traveler tries to delete GroupTour
+                return HttpResponse("Unathorized", status=401)
+        except (KeyError, SoloTrip.DoesNotExist):
+            return HttpResponse('Not found', status=404)
+        else:
+            if user_type=='agency' and trip.agency_id != user_id: # agency tries to delete trip of some other agency
+                return HttpResponse("Unathorized", status=401)
+            if user_type=='traveler' and trip.traveler_id != user_id: # traveler tries to delete someone elses
+                return HttpResponse("Unathorized", status=401)
+            trip.delete()
+            return HttpResponse('OK', status=200)
+
+
+@api_view(['GET'])
+def get_traveler_registrations(request): # conflict with same function in ./functions
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = token.split('#')[1]
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type == 'agency':
+            return HttpResponse('Unauthorized', status=401)
+        else:
+            registrations = TourRegistrations.objects.filter(traveler=user_id).values()
+            return JsonResponse(list(registrations), safe=False)
+
+
+@api_view(['POST'])
+def tour_registration(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = int(token.split('#')[1]) # important: convert to int because of comparison
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+    else:
+        if user_type == 'agency':
+            return HttpResponse("Unathorized", status=401)
+
+        action = request.data['action']
+        tour_id = request.data['tour_id']
+        registration = TourRegistrations.objects.filter(traveler_id=user_id, tour_id= tour_id)
+
+        if not registration:  # not already registered
+            if action == 'register':
+                registration = TourRegistrations(traveler_id=user_id, tour_id=tour_id)
+                registration.save()
+                return HttpResponse("OK", status=200)
+            else:  # action == 'cancel'
+                return HttpResponse("Registration not found", status=404)
+        else:  # already registered
+            if action == 'register':
+                return HttpResponse("Already registered for this trip", status=409)  # 409 - conflict
+            else:  # action == 'cancel'
+                registration.delete()
+                return HttpResponse("OK", status=200)

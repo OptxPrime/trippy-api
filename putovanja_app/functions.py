@@ -86,3 +86,7 @@ def get_agency_trips(agency_id, when):
 # https://stackoverflow.com/questions/22124549/django-models-get-list-of-id
 def get_traveler_registrations(traveler_id):
     return TourRegistrations.objects.filter(traveler=traveler_id).values_list('tour_id', flat=True)
+
+
+def get_tour_registrations(tour_id):
+    return TourRegistrations.objects.filter(tour_id=tour_id).count()

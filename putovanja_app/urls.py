@@ -13,5 +13,9 @@ urlpatterns = [
     path('add-solo-trip', views.add_solo_trip, name='add solo trip'),
     path('add-group-tour', views.add_group_tour, name='add group tour'),
     path('get-future-trips', views.get_future_trips, name='get future trips'),
-    path('get-my-trips', views.get_my_trips, name='get my trips')
+    path('get-my-trips', views.get_my_trips, name='get my trips'),
+    path('change-trip-status', views.change_trip_status, name='change trip status'),
+    path('delete-trip', views.delete_trip),
+    path('get-traveler-registrations', views.get_traveler_registrations, name='get traveler registrations'),
+    path('tour-registration', views.tour_registration, name='tour registration'),
 ]
