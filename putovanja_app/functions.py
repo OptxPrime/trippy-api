@@ -90,3 +90,9 @@ def get_traveler_registrations(traveler_id):
 
 def get_tour_registrations(tour_id):
     return TourRegistrations.objects.filter(tour_id=tour_id).count()
+
+def draw_pdf_section(pdf, x, label, content ):
+    pdf.setFont('Helvetica-Bold', 14)
+    pdf.drawString(20, x, label)
+    pdf.setFont('Helvetica', 12)
+    pdf.drawString(20, x-20, content)

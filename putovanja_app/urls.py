@@ -18,4 +18,6 @@ urlpatterns = [
     path('delete-trip', views.delete_trip),
     path('get-traveler-registrations', views.get_traveler_registrations, name='get traveler registrations'),
     path('tour-registration', views.tour_registration, name='tour registration'),
+    path('get-all-agencies', views.get_all_agencies),
+    path('generate-trip-pdf', views.generate_trip_pdf)
 ]

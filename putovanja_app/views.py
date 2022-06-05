@@ -1,9 +1,12 @@
+import string
 from itertools import chain
 import json
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, FileResponse
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from django.core import serializers
+import io
+from reportlab.pdfgen import canvas
 
 from datetime import datetime
 
@@ -11,7 +14,7 @@ from rest_framework.decorators import api_view
 
 from .models import Traveler, Agency, SoloTrip, GroupTour, TourRegistrations
 from .functions import check_if_registered_email, check_if_registered_username, \
-    generate_random_password, get_agency_trips, \
+    generate_random_password, get_agency_trips, draw_pdf_section, \
     get_traveler_registrations, get_tour_registrations
 
 from . import functions
@@ -419,3 +422,45 @@ def tour_registration(request):
             else:  # action == 'cancel'
                 registration.delete()
                 return HttpResponse("OK", status=200)
+
+
+@api_view(['GET'])
+def get_all_agencies(request):
+    agencies = Agency.objects.all().values('id', 'name')
+    return JsonResponse(list(agencies), safe=False)
+
+@api_view(['GET'])
+def generate_trip_pdf(request):
+    trip_id = request.GET.get('trip_id')
+    trip_type = request.GET.get('trip_type')
+
+    if trip_type == 'group':
+        try:
+            trip = get_object_or_404(GroupTour, pk=trip_id)
+        except (KeyError, GroupTour.DoesNotExist):
+            return HttpResponse("Tour not found", status=404)
+    else: # solo
+        try:
+            trip = get_object_or_404(SoloTrip, pk=trip_id)
+        except (KeyError, SoloTrip.DoesNotExist):
+            return HttpResponse("Trip not found", status=404)
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer)
+    page_w = p._pagesize[0] # page width
+    page_h = p._pagesize[1] # page height
+
+    p.setFont('Helvetica-Bold', 20)
+    p.drawCentredString(page_w/2, page_h-30, trip.title)
+
+    draw_pdf_section(p, page_h-80, "Description", trip.description)
+    draw_pdf_section(p, page_h - 140, "Location", trip.location_name)
+    draw_pdf_section(p, page_h - 200, "Date and time", trip.datetime.strftime("%m/%d/%Y, %H:%M:%S"))
+    draw_pdf_section(p, page_h - 260, "Transport", trip.transport)
+    if trip_type == 'group':
+        draw_pdf_section(p, page_h - 320, "Number of travelers", f"{trip.min_travelers}-{trip.max_travelers}")
+
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return FileResponse(buffer, as_attachment=True, filename=f"trip-{trip.title}#{trip.id}")
