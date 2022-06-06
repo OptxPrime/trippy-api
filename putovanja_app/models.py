@@ -9,6 +9,7 @@ class Traveler(models.Model):
     username = models.CharField(max_length=64)
     email = models.CharField(max_length=64)
     password = models.CharField(max_length=512)
+    profile_pic = models.ImageField(null=True, blank=True, upload_to="images/profile_pics/")
 
     # https://stackoverflow.com/questions/18246024/easy-way-to-exclude-django-state-attribute-from-jsonpickle-encode
     # def to_json(self):
@@ -22,6 +23,7 @@ class Agency(models.Model):
     email = models.CharField(max_length=64)
     password = models.CharField(max_length=512)
     establishment_date = models.DateTimeField('date of establishment')
+    logo = models.ImageField(null=True, blank=True, upload_to="images/agency_logos/")
 
 
 class SoloTrip(models.Model):

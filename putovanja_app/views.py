@@ -1,10 +1,13 @@
+import os
 import string
 from itertools import chain
 import json
-from django.http import JsonResponse, HttpResponse, FileResponse
+from django.http import JsonResponse, HttpResponse, FileResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from django.core import serializers
+from django.conf import settings
+from django.views.decorators.cache import never_cache
 import io
 from reportlab.pdfgen import canvas
 
@@ -464,3 +467,40 @@ def generate_trip_pdf(request):
     p.save()
     buffer.seek(0)
     return FileResponse(buffer, as_attachment=True, filename=f"trip-{trip.title}#{trip.id}")
+
+
+@api_view(['POST'])
+@never_cache
+def upload_avatar(request):
+    try:
+        token = request.data.get('token').strip('"') # removing " from ends of string
+        user_type = token.split('#')[0]
+        user_id = int(token.split('#')[1]) # important: convert to int because of comparison
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+
+    if user_type == 'agency':
+        agency = Agency.objects.get(pk=user_id)
+        try:  # try removing old avatar if user has it
+            os.remove(f'{settings.BASE_DIR}{agency.logo.url}')
+        except Exception:
+            pass
+        logo = request.FILES['slika']
+        logo.name = f"{user_type}#{user_id}-{datetime.now()}" # adding timestamp because of caching problem with same file name
+        agency.logo = logo
+        print(request.data.get('slika').name)
+        agency.save()
+        return HttpResponseRedirect('http://localhost:3000/profile')
+
+    else: # traveler
+        traveler = Traveler.objects.get(pk=user_id)
+        try:  # try removing old avatar if user has it
+            os.remove(f'{settings.BASE_DIR}{traveler.profile_pic.url}')
+        except Exception:
+            pass
+        pic = request.FILES['slika']
+        pic.name = f"{user_type}#{user_id}-{datetime.now()}"  # adding timestamp because of caching problem with same file name
+        traveler.profile_pic = pic
+        print(request.data.get('slika').name)
+        traveler.save()
+        return HttpResponseRedirect('http://localhost:3000/profile')
