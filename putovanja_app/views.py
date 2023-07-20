@@ -11,7 +11,7 @@ from django.views.decorators.cache import never_cache
 import io
 from reportlab.pdfgen import canvas
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from rest_framework.decorators import api_view
 
@@ -271,7 +271,6 @@ def add_group_tour(request):
                 return HttpResponse('Added group tour', status=201)
 
 
-# TO DO: insert is_registered and current_travelers field to all trips because of check in/check out
 @api_view(['GET'])
 def get_future_trips(request):
     try:
@@ -297,7 +296,6 @@ def get_future_trips(request):
                 return JsonResponse(serialized_trips, safe=False)
 
 
-# TO DO: insert is_registered and current_travelers field to all trips because of check in/check out
 @api_view(['GET'])
 def get_my_trips(request):
     try:
@@ -325,6 +323,20 @@ def get_my_trips(request):
                 serialized_trips = serializers.serialize('json', trips)
                 return JsonResponse(serialized_trips, safe=False)
 
+
+@api_view(['GET'])
+def get_recent_trips(request):
+    try:
+        token = json.loads(request.headers['Authorization'].split(' ')[1])
+        user_type = token.split('#')[0]
+        user_id = token.split('#')[1]
+    except Exception:
+        return HttpResponse("Invalid token", status=401)
+
+    recent_tours = GroupTour.objects.filter(datetime__gte=datetime.today() - timedelta(days=500), datetime__lte=datetime.today())
+    serialized_tours = serializers.serialize('json', recent_tours)
+    print(serialized_tours)
+    return JsonResponse(serialized_tours, safe=False)
 
 @api_view(['POST'])
 def change_trip_status(request):
